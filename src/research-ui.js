@@ -54,16 +54,19 @@ export function mountResearch({config,dirty,run}){
   $('research-vietnews').onchange=()=>{
     const record=vietnewsRecords.find(item=>item.id===$('research-vietnews').value);
     if(!record){$('research-vietnews-status').textContent='Chọn bài để tự nạp nội dung và tham chiếu.';return;}
-    $('input').value=record.text;$('reference').value=record.reference;
+    $('text').value=record.text;$('reference').value=record.reference;
     for(const box of document.querySelectorAll('[name="gold-sentence"]'))box.checked=false;
     $('research-vietnews-status').textContent=`Đã nạp “${record.title}” cùng tham chiếu. Đang phân tích; xong bạn có thể so sánh phương pháp.`;
-    $('input').dispatchEvent(new Event('input',{bubbles:true}));$('input').scrollIntoView({behavior:'smooth',block:'center'});
+    $('text').dispatchEvent(new Event('input',{bubbles:true}));$('text').scrollIntoView({behavior:'smooth',block:'center'});
     run(true);
   };
   $('compare-methods').onclick=()=>busy($('compare-methods'),'compare-status',async()=>{
     if(!current)throw new Error('Phân tích văn bản trước.');const version=revision,r=current,reference=$('reference').value;
     const data=await request({action:'compare',text:r.lines.join('\n'),options:r.cfg,external,reference,gold:gold().length?gold():null});if(version!==revision)throw new Error('Đầu vào đã đổi. Hãy phân tích và so sánh lại.');comparison=data;
-    $('compare-output').innerHTML=table(['Phương pháp','Câu chọn','ROUGE-1 F1','ROUGE-2 F1','ROUGE-L F1','F1 theo câu','Tính toán (ms)'],data.rows.map(row=>[esc(row.method),row.selected.map(i=>'C'+(i+1)).join(', '),score(row.rouge?.rouge1.f1),score(row.rouge?.rouge2.f1),score(row.rouge?.rougeL.f1),score(row.selection?.f1),fmt(row.elapsedMs,2)]))+data.rows.map(row=>`<details><summary>${esc(row.method)} · xem bản tóm tắt</summary><p>${esc(row.summary)}</p></details>`).join('');
+    const referencePanel=reference.trim()
+      ?`<div class="vn-reference compare-reference"><span class="eyebrow">BẢN THAM CHIẾU CÓ SẴN</span><h4>Bản tóm tắt chuẩn để đối chiếu</h4><p class="compare-reference-text">${esc(reference.trim())}</p><small>Đây là bản dùng để tính ROUGE; các bản bên dưới do từng phương pháp trích từ văn bản tạo ra.</small></div>`
+      :'<p class="note">Chưa có bản tóm tắt tham chiếu. Hãy chọn bài VietNews hoặc nhập tham chiếu để tính ROUGE.</p>';
+    $('compare-output').innerHTML=referencePanel+table(['Phương pháp','Câu chọn','ROUGE-1 F1','ROUGE-2 F1','ROUGE-L F1','F1 theo câu','Tính toán (ms)'],data.rows.map(row=>[esc(row.method),row.selected.map(i=>'C'+(i+1)).join(', '),score(row.rouge?.rouge1.f1),score(row.rouge?.rouge2.f1),score(row.rouge?.rougeL.f1),score(row.selection?.f1),fmt(row.elapsedMs,2)]))+data.rows.map(row=>`<details><summary>${esc(row.method)} · xem bản tóm tắt</summary><p>${esc(row.summary)}</p></details>`).join('');
     setMessage('compare-status',data.rows.some(row=>row.rouge)?'Đã so sánh LEAD, TF-IDF và Word2Vec/PhoW2V theo cùng bản tham chiếu.':'Đã so sánh. Nhập tham chiếu ROUGE hoặc chọn câu tham chiếu để có điểm chất lượng.');
   });
   refresh().catch(e=>setMessage('model-status',e.message,true));
@@ -74,12 +77,21 @@ export function mountResearch({config,dirty,run}){
   }).catch(error=>setMessage('research-vietnews-status',error.message,true));
 }
 
-export function invalidateResearch(){revision++;current=null;comparison=null;for(const id of ['compare-methods','score-selection'])if($(id))$(id).disabled=true;if($('compare-status'))setMessage('compare-status','Đầu vào đã thay đổi. Phân tích lại trước khi đánh giá.');}
+export function invalidateResearch(){
+  revision++;current=null;comparison=null;
+  for(const id of ['compare-methods','score-selection'])if($(id))$(id).disabled=true;
+  // Never leave summaries from a previous input beside a newly selected article.
+  if($('compare-output'))$('compare-output').replaceChildren();
+  if($('selection-output'))$('selection-output').replaceChildren();
+  if($('compare-status'))setMessage('compare-status','Đầu vào đã thay đổi; kết quả cũ đã được xóa. Phân tích lại trước khi so sánh.');
+}
 export function updateResearch(r,elapsed){
   revision++;current=r;comparison=null;
   for(const id of ['compare-methods','score-selection'])$(id).disabled=false;
   $('gold-sentences').innerHTML=r.lines.map((line,i)=>`<label><input name="gold-sentence" type="checkbox" value="${i}"><b>C${i+1}</b> ${esc(line)}</label>`).join('');
   $('selection-output').innerHTML='';$('compare-output').innerHTML='';setMessage('compare-status','Sẵn sàng so sánh kết quả mới.');
+  const selectedRecord=vietnewsRecords.find(item=>item.id===$('research-vietnews')?.value);
+  if(selectedRecord&&$('text').value===selectedRecord.text)setMessage('research-vietnews-status',`Đã phân tích xong “${selectedRecord.title}”. Bấm “So sánh trên văn bản hiện tại” để xem kết quả.`);
   const info=r.resourcesInfo||{};
   $('analysis-meta').insertAdjacentHTML('beforeend',`<span class="performance-note"> · ${fmt(elapsed,0)} ms tổng · mảng số ≈ ${fmt((info.numericBytes||0)/1024,1)} KiB${info.processRssBytes?` · Python RSS ${fmt(info.processRssBytes/1024**2,1)} MiB`:''}</span>`);
   $('preprocess-content').insertAdjacentHTML('beforeend',`<p class="note">Thời gian gồm chuẩn bị NLP và tính SVD, chưa gồm vẽ giao diện. Bộ nhớ mảng số là ước lượng 8 byte/phần tử của các ma trận đang giữ, chưa gồm overhead JavaScript. Python RSS là bộ nhớ tiến trình NLP tại thời điểm đo, có cả mô hình dùng chung; không phải bộ nhớ riêng của văn bản.</p>`);
