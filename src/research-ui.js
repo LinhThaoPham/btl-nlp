@@ -55,6 +55,8 @@ export function mountResearch({config,dirty,run}){
     const record=vietnewsRecords.find(item=>item.id===$('research-vietnews').value);
     if(!record){$('research-vietnews-status').textContent='Chọn bài để tự nạp nội dung và tham chiếu.';return;}
     $('text').value=record.text;$('reference').value=record.reference;
+    // Keep main.js's referenceText in sync; renderRanking rebuilds this field after analysis.
+    $('reference').dispatchEvent(new Event('input',{bubbles:true}));
     for(const box of document.querySelectorAll('[name="gold-sentence"]'))box.checked=false;
     $('research-vietnews-status').textContent=`Đã nạp “${record.title}” cùng tham chiếu. Đang phân tích; xong bạn có thể so sánh phương pháp.`;
     $('text').dispatchEvent(new Event('input',{bubbles:true}));$('text').scrollIntoView({behavior:'smooth',block:'center'});
