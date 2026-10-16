@@ -52,14 +52,15 @@ export function compareMethods(text,options,resources={},reference='',gold=null,
   const random=rows.filter(r=>r.seed!==undefined),randomAggregate={seeds,rougeL:reference?{mean:mean(random.map(r=>r.rouge.rougeL.f1)),std:std(random.map(r=>r.rouge.rougeL.f1))}:null};
   return {rows,randomAggregate,count:c,options:cfg,tokenizer:options.tokenizer,reference,scope:'SVD; baseline dùng TF-IDF, cùng tokenizer, lọc từ vựng, chuẩn hóa L2 và số câu.'};
 }
-export function comparePrimaryMethods(text,options,resources={},embeddingResources={},reference='',referenceTokens=null,embeddingReferenceTokens=null){
+export function comparePrimaryMethods(text,options,embeddingResources={},reference='',embeddingReferenceTokens=null,gold=null){
   const n=splitSentences(text).length,c=clamp(Math.round(Number(options.count)||1),1,n),lines=splitSentences(text),rows=[];
-  const score=(selected,tokenizer,tokenRows,refTokens)=>{const summary=selected.map(j=>lines[j]).join(' '),candidate=tokenizer==='underthesea'?selected.flatMap(j=>tokenRows.rows[j].map(t=>t.word)).join(' '):summary;return {summary,rouge:reference?evaluate(candidate,refTokens?.join(' ')||reference):null};};
-  const add=(method,fn,tokenizer=options.tokenizer,tokenRows=resources,refTokens=referenceTokens)=>{const start=performance.now(),output=fn(),elapsedMs=performance.now()-start,selected=output.selected;rows.push({method,selected,...score(selected,tokenizer,tokenRows,refTokens),elapsedMs,...output});};
+  const sharedResources=embeddingResources;
+  const score=selected=>{const summary=selected.map(j=>lines[j]).join(' '),candidate=selected.flatMap(j=>sharedResources.rows[j].map(t=>t.word)).join(' ');return {summary,rouge:reference?evaluate(candidate,embeddingReferenceTokens?.join(' ')||reference):null,selection:gold?selectionMetrics(selected,gold,n):null};};
+  const add=(method,fn)=>{const start=performance.now(),output=fn(),elapsedMs=performance.now()-start,selected=output.selected;rows.push({method,selected,...score(selected),elapsedMs,...output});};
   add('LEAD',()=>({selected:Array.from({length:c},(_,i)=>i)}));
-  add('TF-IDF',()=>{const r=buildRepresentation(text,{...options,representation:'terms',tokenizer:options.tokenizer,weight:'tfidf'},resources);return {selected:top(r.columns.map(v=>v.reduce((s,x)=>s+x,0)),c),numericBytes:numericBytes(r)};});
-  add('Word2Vec / PhoW2V',()=>{const r=analyze(text,[],{...options,method:'sj',representation:'embedding',tokenizer:'underthesea',vocab:'all',weight:'tfidf'},embeddingResources);return {selected:r.selected,model:r.embedding?.model?.name,k:r.k,numericBytes:numericBytes(r)};},'underthesea',embeddingResources,embeddingReferenceTokens);
-  return {rows,count:c,options,reference,scope:'LEAD, TF-IDF và Word2Vec/PhoW2V trên cùng văn bản và số câu.'};
+  add('TF-IDF → SVD',()=>{const r=analyze(text,[],{...options,method:options.method||'sj',representation:'terms',tokenizer:'underthesea',weight:'tfidf'},sharedResources);return {selected:r.selected,k:r.k,numericBytes:numericBytes(r)};});
+  add('Word2Vec / PhoW2V → SVD',()=>{const r=analyze(text,[],{...options,method:options.method||'sj',representation:'embedding',tokenizer:'underthesea',vocab:'all',weight:'tfidf'},sharedResources);return {selected:r.selected,model:r.embedding?.model?.name,k:r.k,numericBytes:numericBytes(r)};});
+  return {rows,count:c,options,reference,scope:'LEAD, TF-IDF → SVD và Word2Vec/PhoW2V → SVD; cùng văn bản, tokenizer Underthesea, số câu và cấu hình SVD.'};
 }
 export function numericBytes(r){
   const keys=['tf','rawA','A','columns','U','V','VT','Sigma'];
