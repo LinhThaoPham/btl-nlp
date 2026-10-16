@@ -1,0 +1,44 @@
+# Đối chiếu bản HTML mới với hai nguồn
+Nguồn chính: “Nội dung (1).docx”. Bố cục, hình minh họa và ví dụ giữ từ “slides (2).html”.
+- Slide 1: Phân rã giá trị kỳ dị (SVD) và ứng dụng xác định câu quan trọng — Slide cũ + tài liệu mục 1–3
+- Slide 2: Lộ trình trình bày — Slide cũ + tài liệu mục 1–3
+- Slide 3: Phân rã giá trị kỳ dị SVD — Slide cũ + tài liệu mục 1–3
+- Slide 4: Mọi ma trận thực A cỡ m×n đều phân rã được — Slide cũ + tài liệu mục 1–3
+- Slide 5: Ba thành phần, ba vai trò — Slide cũ + tài liệu mục 1–3
+- Slide 6: $Ax = U(\Sigma(V^{T}x))$ — ba bước biến đổi — Slide cũ + tài liệu mục 1–3
+- Slide 7: Quét x quanh đường tròn đơn vị: khi nào ‖Ax‖ lớn nhất? — Slide cũ + tài liệu mục 1–3
+- Slide 8: Ứng dụng SVD để xác định câu quan trọng — Slide cũ + tài liệu mục 1–3
+- Slide 9: SVD khai thác các mẫu đồng xuất hiện — Slide cũ + tài liệu mục 1–3
+- Slide 10: Từ văn bản thô đến bản tóm tắt — Slide cũ + tài liệu mục 1–3
+- Slide 11: Kích thước m × n và lựa chọn từ vựng — Slide cũ + tài liệu mục 1–3
+- Slide 12: 5 câu, 6 từ (df ≥ 2), trọng số TF → ma trận A cỡ 6 × 5 — Slide cũ + tài liệu mục 1–3
+- Slide 13: Cách 1: Trọng số từ  vs  Cách 2: Word2Vec — Slide cũ + tài liệu mục 1–3
+- Slide 14: Vector câu = trung bình các vector từ — Slide cũ + tài liệu mục 1–3
+- Slide 15: Hai cách biểu diễn: khả năng diễn giải và hạn chế — Slide cũ + tài liệu mục 1–3
+- Slide 16: Tính phần tử $a_{ij}$ cho Cách 1 — Slide cũ + tài liệu mục 1–3
+- Slide 17: Giữ bao nhiêu chiều kỳ dị? — Slide cũ + tài liệu mục 1–3
+- Slide 18: Phổ kỳ dị và hai hướng giữ lại trong ví dụ — Slide cũ + tài liệu mục 1–3
+- Slide 19: Gong & Liu (2001) vs Steinberger & Ježek (2004) — Slide cũ + tài liệu mục 1–3
+- Slide 20: Hai phương pháp cùng chọn S4 và S5 — Slide cũ + tài liệu mục 1–3
+- Slide 21: Giảm thiên lệch độ dài — Slide cũ + tài liệu mục 1–3
+- Slide 22: Giảm trùng lặp với MMR — Slide cũ + tài liệu mục 1–3
+- Slide 23: Các phương pháp đánh giá — Slide cũ + tài liệu mục 1–3
+- Slide 24: Bốn nhóm đánh giá — Slide cũ + tài liệu mục 1–3
+- Slide 25: Đồng chọn câu và ROUGE — Slide cũ + tài liệu mục 1–3
+- Slide 26: Một câu, ba độ đo — Slide cũ + tài liệu mục 1–3
+- Slide 27: Khớp token ≠ khớp nghĩa — Slide cũ + tài liệu mục 1–3
+- Slide 28: Ưu điểm và hạn chế của SVD — Tài liệu mục 4
+- Slide 29: Ưu điểm của SVD trong tóm tắt trích rút — Tài liệu mục 4
+- Slide 30: Hạn chế xuất phát từ biểu diễn và cách chọn câu — Tài liệu mục 4
+- Slide 31: Đối chiếu cơ chế với các phương pháp cơ sở — Tài liệu mục 4
+- Slide 32: Demo và thực nghiệm VietNews — Bổ sung: demo và thực nghiệm
+- Slide 33: Demo cho phép quan sát những bước nào? — Bổ sung: demo và thực nghiệm
+- Slide 34: 10 bài dev để chọn ngưỡng, 20 bài test để chấm — Bổ sung: demo và thực nghiệm
+- Slide 35: Kết quả chọn ngưỡng trên tập dev — Bổ sung: demo và thực nghiệm
+- Slide 36: Kết quả so sánh thật trên 20 bài test — Bổ sung: demo và thực nghiệm
+- Slide 37: Vì sao TF-IDF→SVD cho cùng kết quả LEAD? — Bổ sung: demo và thực nghiệm
+- Slide 38: So sánh TF-IDF và PhoW2V sau khi chọn k — Bổ sung: demo và thực nghiệm
+- Slide 39: Đối chiếu câu chọn với tham chiếu VietNews — Bổ sung: demo và thực nghiệm
+- Slide 40: Hai bản tóm tắt của bài vừa chọn — Bổ sung: demo và thực nghiệm
+- Slide 41: Những điểm cần công bố khi trình bày kết quả — Bổ sung: demo và thực nghiệm
+- Slide 42: Những điểm cần nhớ — Tổng kết tài liệu + kết quả bổ sung

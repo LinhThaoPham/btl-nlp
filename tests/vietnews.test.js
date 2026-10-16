@@ -10,6 +10,7 @@ test('anonymized names do not leave detached VietNews sentence fragments',()=>{
  assert.equal(lines.length,3);
  assert.ok(lines[1].includes('Tr . tới_tấp'));
  assert.ok(lines[2].includes('Tr . đã tử_vong'));
+ assert.equal(splitSentences('Ông Bảo_Th . , ngụ Hải_Châu .\nÔng Lê_Quốc_Th .\n400 triệu đồng .').length,2);
 });
 
 test('VietNews parser excludes title/reference and final caption block by default',()=>{

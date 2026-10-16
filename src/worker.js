@@ -1,6 +1,6 @@
 import {compareVietNews,benchmarkVietNews} from './vietnews-engine.js';
 import {analyze,splitSentences} from './engine.js';
-import {compareMethods,rougeDetails,tuneAndEvaluate,numericBytes} from './research.js';
+import {comparePrimaryMethods,rougeDetails,tuneAndEvaluate,numericBytes} from './research.js';
 import {prepareResources,evaluationRows} from './nlp-client.js';
 self.onmessage=async({data})=>{try{
   const started=performance.now();let result;
@@ -16,7 +16,10 @@ self.onmessage=async({data})=>{try{
     const resources=await prepareResources(data.text,data.topics||[],data.options,data.external);
     if(data.action==='compare'){
       const referenceTokens=data.reference?(await evaluationRows([data.reference],data.options.tokenizer))[0]:null;
-      result=compareMethods(data.text,data.options,resources,data.reference,data.gold,referenceTokens);
+      const embeddingOptions={...data.options,tokenizer:'underthesea',representation:'embedding'};
+      const embeddingResources=data.options.tokenizer==='underthesea'&&data.options.representation==='embedding'?resources:await prepareResources(data.text,[],embeddingOptions,data.external);
+      const embeddingReferenceTokens=data.reference?(await evaluationRows([data.reference],'underthesea'))[0]:null;
+      result=comparePrimaryMethods(data.text,data.options,resources,embeddingResources,data.reference,referenceTokens,embeddingReferenceTokens);
     }else{result=analyze(data.text,data.topics,data.options,resources);result.resourcesInfo={preprocessMs:resources.elapsedMs||0,processRssBytes:resources.processRssBytes||null,numericBytes:numericBytes(result)};}
   }
   self.postMessage({id:data.id,result,elapsed:performance.now()-started});

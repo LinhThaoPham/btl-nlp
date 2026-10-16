@@ -37,7 +37,7 @@ export const std=a=>a.length?Math.sqrt(mean(a.map(x=>(x-mean(a))**2))):0;
 const top=(scores,c)=>scores.map((_,i)=>i).sort((a,b)=>Math.abs(scores[b]-scores[a])<=1e-10?a-b:scores[b]-scores[a]).slice(0,c).sort((a,b)=>a-b);
 export function compareMethods(text,options,resources={},reference='',gold=null,referenceTokens=null,seeds=[11,29,47,71,101]){
   const n=splitSentences(text).length,c=clamp(Math.round(Number(options.count)||1),1,n),rows=[];
-  const cfg={...options,topicWeight:0,mmr:false};
+  const cfg={...options};
   const score=(selected)=>{
     const summary=selected.map(j=>splitSentences(text)[j]).join(' ');
     const candidate=options.tokenizer==='underthesea'?selected.flatMap(j=>resources.rows[j].map(t=>t.word)).join(' '):summary;
@@ -50,7 +50,16 @@ export function compareMethods(text,options,resources={},reference='',gold=null,
   add('TextRank',()=>{const r=buildRepresentation(text,{...cfg,representation:'terms',weight:'tfidf'},resources),rank=textRank(r.columns);return {selected:top(rank.scores,c),iterations:rank.iterations,numericBytes:numericBytes(r)+n*n*8};});
   for(const method of ['sj','gl'])add(method==='sj'?'SVD Steinberger–Ježek':'SVD Gong–Liu',()=>{const r=analyze(text,[],{...cfg,method},resources);return {selected:r.selected,k:r.k,numericBytes:numericBytes(r)};});
   const random=rows.filter(r=>r.seed!==undefined),randomAggregate={seeds,rougeL:reference?{mean:mean(random.map(r=>r.rouge.rougeL.f1)),std:std(random.map(r=>r.rouge.rougeL.f1))}:null};
-  return {rows,randomAggregate,count:c,options:cfg,tokenizer:options.tokenizer,reference,scope:'SVD không dùng chủ đề/MMR; baseline dùng TF-IDF, cùng tokenizer, lọc từ vựng, chuẩn hóa L2 và số câu.'};
+  return {rows,randomAggregate,count:c,options:cfg,tokenizer:options.tokenizer,reference,scope:'SVD; baseline dùng TF-IDF, cùng tokenizer, lọc từ vựng, chuẩn hóa L2 và số câu.'};
+}
+export function comparePrimaryMethods(text,options,resources={},embeddingResources={},reference='',referenceTokens=null,embeddingReferenceTokens=null){
+  const n=splitSentences(text).length,c=clamp(Math.round(Number(options.count)||1),1,n),lines=splitSentences(text),rows=[];
+  const score=(selected,tokenizer,tokenRows,refTokens)=>{const summary=selected.map(j=>lines[j]).join(' '),candidate=tokenizer==='underthesea'?selected.flatMap(j=>tokenRows.rows[j].map(t=>t.word)).join(' '):summary;return {summary,rouge:reference?evaluate(candidate,refTokens?.join(' ')||reference):null};};
+  const add=(method,fn,tokenizer=options.tokenizer,tokenRows=resources,refTokens=referenceTokens)=>{const start=performance.now(),output=fn(),elapsedMs=performance.now()-start,selected=output.selected;rows.push({method,selected,...score(selected,tokenizer,tokenRows,refTokens),elapsedMs,...output});};
+  add('LEAD',()=>({selected:Array.from({length:c},(_,i)=>i)}));
+  add('TF-IDF',()=>{const r=buildRepresentation(text,{...options,representation:'terms',tokenizer:options.tokenizer,weight:'tfidf'},resources);return {selected:top(r.columns.map(v=>v.reduce((s,x)=>s+x,0)),c),numericBytes:numericBytes(r)};});
+  add('Word2Vec / PhoW2V',()=>{const r=analyze(text,[],{...options,method:'sj',representation:'embedding',tokenizer:'underthesea',vocab:'all',weight:'tfidf'},embeddingResources);return {selected:r.selected,model:r.embedding?.model?.name,k:r.k,numericBytes:numericBytes(r)};},'underthesea',embeddingResources,embeddingReferenceTokens);
+  return {rows,count:c,options,reference,scope:'LEAD, TF-IDF và Word2Vec/PhoW2V trên cùng văn bản và số câu.'};
 }
 export function numericBytes(r){
   const keys=['tf','rawA','A','columns','U','V','VT','Sigma'];
@@ -79,10 +88,10 @@ export async function tuneAndEvaluate(dataset,base,prepare,progress=()=>{}){
   const trials=[];
   for(let i=0;i<grid.length;i++){
     progress(`Thử cấu hình ${i+1}/${grid.length} trên tập dev`);const perDocument=[];
-    for(const row of dev){const r=analyze(row.text,[],{...base,...grid[i],method:'sj',mmr:false,topicWeight:0},row.resources);const candidate=r.selected.flatMap(j=>row.evalRows[j]).join(' ');perDocument.push({id:row.id,f1:evaluate(candidate,row.referenceTokens.join(' ')).rougeL.f1});}
+    for(const row of dev){const r=analyze(row.text,[],{...base,...grid[i],method:'sj'},row.resources);const candidate=r.selected.flatMap(j=>row.evalRows[j]).join(' ');perDocument.push({id:row.id,f1:evaluate(candidate,row.referenceTokens.join(' ')).rougeL.f1});}
     trials.push({config:grid[i],meanF1:mean(perDocument.map(x=>x.f1)),perDocument});
   }
-  trials.sort((a,b)=>b.meanF1-a.meanF1);const frozen={...base,...trials[0].config,method:'sj',mmr:false,topicWeight:0};
+  trials.sort((a,b)=>b.meanF1-a.meanF1);const frozen={...base,...trials[0].config,method:'sj'};
   const results=[];
   for(let i=0;i<test.length;i++){progress(`Đánh giá test ${i+1}/${test.length}`);const row=test[i];results.push({id:row.id,...compareMethods(row.text,frozen,row.resources,row.reference,row.gold?.map(j=>j-1)||null,row.referenceTokens)});}
   const names=results[0].rows.map(r=>r.method),aggregate=names.map(method=>{const samples=results.map(r=>r.rows.find(x=>x.method===method));return {method,documents:samples.length,rouge1:mean(samples.map(r=>r.rouge.rouge1.f1)),rouge2:mean(samples.map(r=>r.rouge.rouge2.f1)),rougeL:mean(samples.map(r=>r.rouge.rougeL.f1)),elapsedMs:mean(samples.map(r=>r.elapsedMs)),numericBytes:mean(samples.map(r=>r.numericBytes||0))};});

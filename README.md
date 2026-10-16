@@ -24,7 +24,7 @@ Trên Linux/macOS dùng `.venv/bin/python`. Vite tự khởi động dịch vụ
 
 - Cấu hình: chọn Underthesea để tách từ và xem POS; lọc N/V/A, top-m TF hoặc TF-IDF, hoặc nạp kho JSON gồm mảng văn bản để xây từ vựng/IDF ngoài. df của kho ngoài đếm **tài liệu**, IDF = ln(N/df), không smoothing. Token không có trong kho bị bỏ. Kho chỉ tồn tại trong phiên.
 - Word2Vec/PhoW2V: mở **Mô hình ngôn ngữ và kho ngữ liệu ngoài**, nạp tệp Word2Vec đã giải nén (`.bin` binary hoặc `.vec`/`.txt` có header `số_từ số_chiều`). Hoặc đặt tệp trong `models/` rồi làm mới và chọn. PhoW2V 100 chiều tạo 100 hàng. Mô hình được lập chỉ mục SQLite trên đĩa để tránh giữ toàn bộ vector trong RAM. Từ tra trực tiếp được ưu tiên; từ ghép OOV lấy trung bình các thành phần có vector. Từ hoàn toàn OOV bỏ khỏi mẫu số; câu toàn OOV là vector 0. Trung bình tính theo **lần xuất hiện**, không theo tập từ duy nhất. UI hiển thị độ phủ, đường tra, vector câu và từng phép tính ô. Các hàng U của biểu diễn nhúng là chiều Eᵢ, không phải từ khóa.
-- So sánh: LEAD, Random qua seed 11/29/47/71/101, cộng TF-IDF, TextRank cosine và hai phương pháp SVD. Chung tokenizer, lọc từ vựng, c, lựa chọn L2; baseline dùng TF-IDF, SVD dùng biểu diễn được chọn. Chủ đề và MMR tắt khi benchmark. TextRank bỏ cạnh tự nối, dùng max(0, cosine), damping .85, tối đa 200 vòng, ngưỡng L1 1e-9, phân phối đều điểm của nút không có cạnh. Hòa điểm ưu tiên vị trí.
+- So sánh: LEAD, Random qua seed 11/29/47/71/101, cộng TF-IDF, TextRank cosine và hai phương pháp SVD. Chung tokenizer, lọc từ vựng, c, lựa chọn L2; baseline dùng TF-IDF, SVD dùng biểu diễn được chọn.  TextRank bỏ cạnh tự nối, dùng max(0, cosine), damping .85, tối đa 200 vòng, ngưỡng L1 1e-9, phân phối đều điểm của nút không có cạnh. Hòa điểm ưu tiên vị trí.
 - Đồng chọn câu: checkbox tham chiếu, P/R/F1 tính trên tập chỉ số câu.
 - ROUGE: token đơn, bigram và số khớp min(count ứng viên, count tham chiếu), chuỗi LCS và cặp vị trí. Dùng cùng tokenizer cho hai phía, không bỏ stopword; ROUGE-L trên chuỗi nối, không phải ROUGE-Lsum. Giải thích LCS giới hạn 4 triệu cặp token.
 - Đánh giá người đọc: đầy đủ, ít dư thừa, mạch lạc theo thang 1–5, người chấm và ghi chú; xuất JSON để lưu kết quả phiên.
@@ -62,7 +62,7 @@ Bản production nằm trong `dist/`; có thể đưa thư mục này lên dịc
 3. Khám phá bảng TF, trọng số, A sau L2; bấm từng ô để xem phép tính.
 4. Xem U, Sigma, V, V-transpose; diễn giải A-transpose A, trị riêng, u = Av/sigma, sai số tái dựng/trực chuẩn. Chọn hướng/token/câu để kiểm tra số Av, A-transpose u, Bv và từng số hạng tái dựng A. Kéo q để xem ma trận xấp xỉ hạng thấp và sai số.
 5. Chọn k, xem phổ/năng lượng tích lũy, từ khóa theo |u| và bản đồ câu; bấm cột phổ để đổi k.
-6. Xem đóng góp từng chiều, bảng điểm, các vòng chọn câu/MMR, sao chép bản tóm tắt, xuất báo cáo JSON, đánh giá ROUGE.
+6. Xem đóng góp từng chiều, bảng điểm, các vòng chọn câu, sao chép bản tóm tắt, xuất báo cáo JSON, đánh giá ROUGE.
 
 ## Quy ước theo PDF
 
@@ -73,13 +73,8 @@ Bản production nằm trong `dist/`; có thể đưa thư mục này lên dịc
 - k: năng lượng tích lũy, ngưỡng tương đối hoặc cố định; Gong–Liu dùng k = c, giới hạn rank.
 - Steinberger–Ježek dùng **căn bậc hai**: `s_j = sqrt(sum(sigma_i^2 * v_ij^2))`.
 - Điều chỉnh độ dài `s'_j = s_j / ||a_j||^alpha` dùng chuẩn của chính cột đầu vào SVD. Nó khác chuẩn hóa cột trước SVD.
-- Gong–Liu chọn tuần tự theo `|v_ij|`, bỏ câu đã chọn, không dùng chủ đề/alpha/MMR. Nếu c > rank, ứng dụng bổ sung theo điểm SVD tổng hợp, đánh dấu rõ đây là dự phòng mở rộng.
-- MMR dùng điểm được chuẩn hóa theo maximum, cosine giữa các cột A; tập rỗng/vector 0 có tương đồng 0. Hòa điểm trong sai số 1e-10 ưu tiên vị trí sớm.
+- Gong–Liu chọn tuần tự theo `|v_ij|`, bỏ câu đã chọn, không dùng alpha. Nếu c > rank, ứng dụng bổ sung theo điểm SVD tổng hợp, đánh dấu rõ đây là dự phòng mở rộng.
 - Ma trận toàn 0/từ vựng rỗng: dự phòng theo vị trí. Câu cuối cùng sắp theo thứ tự gốc.
-
-## Chủ đề do người dùng nhập: phần mở rộng
-
-PDF mô tả chủ đề tiềm ẩn, không định nghĩa query bên ngoài. Ứng dụng vector hóa chủ đề q bằng cùng vocab/trọng số, chiếu `z_q=U_k^T q`; câu có `z_j=(sigma_i*v_ij)` trên k chiều. Liên quan là `max(0, cosine(z_q,z_j))`; nhiều chủ đề dùng mức liên quan lớn nhất. Điểm lựa chọn `(1-beta)*normalized_svd + beta*relevance`. Nếu không có hình chiếu thì beta hiệu dụng = 0 và có thông báo. Không đảm bảo phủ đủ mọi chủ đề; các chiều T_i không là nhãn ngữ nghĩa gán sẵn.
 
 ## Giới hạn được công bố
 
@@ -87,7 +82,7 @@ Chế độ tokenizer cơ bản theo khoảng trắng/dấu câu, giữ token n�
 
 ## Cấu trúc
 
-- `src/engine.js`: trọng số, SVD, định hướng chủ đề, chấm/chọn câu, ROUGE.
+- `src/engine.js`: trọng số, SVD, chấm/chọn câu, ROUGE.
 - `src/worker.js`: tính toán ngoài luồng UI.
 - `src/main.js`: luồng ứng dụng và tương tác.
 - `src/views.js`: heatmap ma trận và SVG trực quan.
@@ -104,7 +99,7 @@ Dự án đang chạy từ `D:\bt_nlp`. Mô hình, tệp tải và chỉ mục l
 
 Mở `http://localhost:5173/?tab=vietnews`. Trang được tách thành ba tab: Demo SVD, Thực nghiệm VietNews, Đánh giá nâng cao. Trạng thái đầu vào demo được giữ khi đổi tab.
 
-- Thử một bài: chọn từ 10 bài validation (dev) và 20 bài test; tiêu đề và tham chiếu tách riêng khỏi đầu vào. So sánh TF-IDF/SVD với PhoW2V/SVD theo cùng số câu, L2, tokenizer basic giữ token `_`, phương pháp Steinberger–Ježek; tắt chủ đề và MMR. ROUGE chấm trên token gốc có stopword.
+- Thử một bài: chọn từ 10 bài validation (dev) và 20 bài test; tiêu đề và tham chiếu tách riêng khỏi đầu vào. So sánh TF-IDF/SVD với PhoW2V/SVD theo cùng số câu, L2, tokenizer basic giữ token `_`, phương pháp Steinberger–Ježek;  ROUGE chấm trên token gốc có stopword.
 - Khối cuối ngắn chỉ được gợi ý là chú thích ảnh; mặc định giữ nguyên, người dùng có thể xem rồi loại. Chỉnh sửa và lựa chọn loại khối được ghi vào JSON xuất. Phần xem dễ đọc ẩn dấu `_` nhưng không đổi token tính toán.
 - Chạy nhiều bài: thử riêng 7 cấu hình trên dev cho mỗi biểu diễn rồi cố định cấu hình trước khi chấm test; báo cáo macro ROUGE F1 và kết quả từng bài. Dùng bài gốc giữ khối cuối, không dùng chỉnh sửa của màn thử một bài. JSON có ID tập chia, cấu hình, nguồn, commit và model.
 - Mẫu cục bộ tải bằng `.venv\Scripts\python.exe server/fetch_vietnews.py`; nguồn https://github.com/ThanhChinhBK/vietnews . Đây là 10 tên tệp đầu validation và 20 tên đầu test, không phải mẫu ngẫu nhiên hoặc toàn bộ benchmark. Nguồn, commit và SHA-256 từng tệp được lưu trong `public/data/vietnews.json`. Tệp nguồn chỉ được tải về máy cho demo; không có thao tác công bố dữ liệu lên hosting.

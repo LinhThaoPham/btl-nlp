@@ -13,7 +13,7 @@ export function parseVietNews(raw,meta={}) {
   return {...meta,title,reference,text:cleaned,bodyWithoutTrailing:cleaned,trailingCandidate:candidate?last:'',excludeTrailing:candidate,raw};
 }
 export function vietnewsOptions(count=3,extra={}) {
-  return {...DEFAULTS,tokenizer:'basic',representation:'terms',weight:'tfidf',vocab:'all',count,topicWeight:0,mmr:false,method:'sj',kMode:'energy',energy:.8,...extra};
+  return {...DEFAULTS,tokenizer:'basic',representation:'terms',weight:'tfidf',vocab:'all',count,method:'sj',kMode:'energy',energy:.8,...extra};
 }
 export function scoreVietNews(record,resources,options) {
   const start=performance.now(),r=analyze(record.text,[],options,resources),elapsedMs=performance.now()-start;
@@ -29,7 +29,7 @@ export async function compareVietNews(record,options,progress=()=>{}){
   const cfg=vietnewsOptions(options.count,options);progress('Tra vector PhoW2V cho bài đang chọn…');
   const resources=await prepare(record,cfg);
   const rows=['terms','embedding'].map(representation=>scoreVietNews(record,resources,{...cfg,representation}));
-  return {schemaVersion:1,kind:'single',createdAt:new Date().toISOString(),record,rows,settings:cfg,model:resources.model,preprocessMs:resources.elapsedMs||0,tokenizer:'basic (giữ token có dấu _ của VietNews)',scope:'Cùng văn bản, tokenizer, số câu, L2 và Steinberger–Ježek; không dùng chủ đề, MMR hoặc bản tham chiếu để chọn câu.'};
+  return {schemaVersion:1,kind:'single',createdAt:new Date().toISOString(),record,rows,settings:cfg,model:resources.model,preprocessMs:resources.elapsedMs||0,tokenizer:'basic (giữ token có dấu _ của VietNews)',scope:'Cùng văn bản, tokenizer, số câu, L2 và Steinberger–Ježek; không dùng bản tham chiếu để chọn câu.'};
 }
 export async function benchmarkVietNews(records,options,progress=()=>{}){
   const dataset=validateDataset(records),cfg=vietnewsOptions(options.count,options),prepared=[];

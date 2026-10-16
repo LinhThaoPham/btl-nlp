@@ -1,6 +1,6 @@
 import { Matrix, SingularValueDecomposition } from 'ml-matrix';
 
-export const DEFAULTS = { representation:'terms', tokenizer:'basic', topM:200, weight: 'tfidf', vocab: 'all', stopwords: true, normalize: true, kMode: 'energy', energy: 0.8, gamma: 0.5, fixedK: 2, count: 3, method: 'sj', alpha: 0, mmr: false, lambda: 0.7, topicWeight: 0.4 };
+export const DEFAULTS = { representation:'terms', tokenizer:'basic', topM:200, weight: 'tfidf', vocab: 'all', stopwords: true, normalize: true, kMode: 'energy', energy: 0.8, gamma: 0.5, fixedK: 2, count: 3, method: 'sj', alpha: 0 };
 const STOP = new Set('và là của các những một được đã đang sẽ để với cho trong trên từ thì mà có này đó rất cũng khi như về ở đến bởi hoặc nhưng vì nên do lại hơn vào ra bị chúng tôi bạn họ nó mình phải vẫn chỉ còn theo mỗi cùng nào'.split(' '));
 export const norm = v => Math.hypot(...v);
 export const dot = (a,b) => a.reduce((s,x,i)=>s+x*b[i],0);
@@ -16,7 +16,7 @@ export function splitSentences(text) {
   const repaired=source.replace(/\s+/gu,(space,offset)=>{
     const before=source.slice(0,offset),after=source.slice(offset+space.length);
     const abbreviation=before.match(/(?:^|[\s_])([\p{L}]{1,4})\s*\.$/u)?.[1];
-    if(abbreviation&&(/^(TP|TX|TS|ThS|PGS|GS)$/u.test(abbreviation)||(/^[A-ZĐ][\p{L}]{0,2}$/u.test(abbreviation)&&/^[\p{Ll}(]/u.test(after))))return '\u0000';
+    if(abbreviation&&(/^(TP|TX|TS|ThS|PGS|GS)$/u.test(abbreviation)||(/^[A-ZĐ][\p{L}]{0,2}$/u.test(abbreviation)&&/^[\p{Ll}\p{N}(,;:]/u.test(after))))return '\u0000';
     return space;
   });
   return repaired.split(/\n+|(?<=[.!?…。])\s+(?=[^\s])/u).map(s=>s.replaceAll('\u0000',' ').trim()).filter(Boolean);
@@ -89,7 +89,7 @@ export function embedToken(word,vectors,dim){
   if(word.includes('_')&&parts.length)return {route:'parts',parts,vector:Array.from({length:dim},(_,i)=>parts.reduce((s,w)=>s+vectors[w][i],0)/parts.length)};
   return {route:'missing',parts:[],vector:null};
 }
-export function analyze(text, topics=[], options={}, resources={}) {
+export function analyze(text, _topics=[], options={}, resources={}) {
   const input=buildRepresentation(text,options,resources);
   const {cfg,lines,n,m,tokens,vocab,tf,df,idf,entropy,rawA,rawNorms,A,columns,norms}=input;
   let U=Array.from({length:m},()=>[]),V=Array.from({length:n},()=>[]),sigma=[],rank=0,reconstructionError=0,orthogonalError=0;
@@ -115,38 +115,22 @@ export function analyze(text, topics=[], options={}, resources={}) {
   const baseScores=contributions.map(row=>Math.sqrt(row.reduce((s,x)=>s+x,0)));
   const adjusted=baseScores.map((s,j)=>norms[j]?s/Math.pow(norms[j],clamp(Number(cfg.alpha)||0,0,1)):0);
   const maximum=Math.max(...adjusted,0),normalized=adjusted.map(s=>maximum?s/maximum:0);
-  const projected=V.map(row=>row.slice(0,k).map((v,i)=>sigma[i]*v));
-  const topicResults=topics.map(label=>{
-    const topicWords=(resources.topicRows?.[topics.indexOf(label)]?.map(t=>t.word)||tokenize(label)).filter(w=>!cfg.stopwords||!STOP.has(w));
-    const tc=new Map();for(const w of topicWords)tc.set(w,(tc.get(w)||0)+1);
-    let q,matched;
-    if(input.embedding){const embedded=topicWords.map(w=>({w,...embedToken(w,resources.vectors,input.embedding.dim)})).filter(x=>x.vector);q=Array.from({length:m},(_,i)=>embedded.length?embedded.reduce((s,x)=>s+x.vector[i],0)/embedded.length:0);matched=embedded.map(x=>x.w);}
-    else{q=vocab.map((w,i)=>cfg.weight==='tfidf'?(tc.get(w)||0)*idf[i]:weightValue(tc.get(w)||0,df[i],n,cfg.weight,entropy[i]));matched=vocab.filter(w=>tc.has(w));}
-    const qnorm=norm(q);if(cfg.normalize&&qnorm)q.forEach((_,i)=>q[i]/=qnorm);
-    const latent=Array.from({length:k},(_,i)=>U.reduce((s,row,t)=>s+row[i]*q[t],0));
-    const relevance=projected.map(z=>Math.max(0,cosine(z,latent)));
-    return {label,q,latent,relevance,matched,active:norm(latent)>1e-12};
-  });
-  const activeTopics=topicResults.filter(t=>t.active), relevance=Array.from({length:n},(_,j)=>activeTopics.length?Math.max(...activeTopics.map(t=>t.relevance[j])):0);
-  const beta=activeTopics.length&&cfg.method!=='gl'?clamp(Number(cfg.topicWeight)||0,0,1):0;
-  const finalScores=normalized.map((s,j)=>(1-beta)*s+beta*relevance[j]);
-  if(topics.length&&!activeTopics.length)notices.push('Chủ đề không có trọng số trong từ vựng hoặc không chiếu được lên các chiều giữ lại. Kết quả dùng điểm SVD gốc.');
-  if(cfg.method==='gl'&&(cfg.mmr||topics.length||cfg.alpha>0))notices.push('Gong–Liu dùng đúng quy tắc mỗi chiều chọn một câu. Chủ đề, α và MMR chỉ áp dụng khi chọn Steinberger–Ježek.');
-  if(rank&&cfg.method==='sj'&&k===rank&&cfg.normalize)notices.push('k = rank và các cột khác 0 đã chuẩn hóa L2: điểm SVD đều bằng 1. Việc chọn câu dùng quy tắc hòa điểm, chủ đề hoặc MMR tùy cấu hình.');
+  const finalScores=normalized;
+  if(cfg.method==='gl'&&cfg.alpha>0)notices.push('Gong–Liu dùng đúng quy tắc mỗi chiều chọn một câu. α chỉ áp dụng khi chọn Steinberger–Ježek.');
+  if(rank&&cfg.method==='sj'&&k===rank&&cfg.normalize)notices.push('k = rank và các cột khác 0 đã chuẩn hóa L2: điểm SVD đều bằng 1. Việc chọn câu dùng quy tắc hòa điểm.');
   const chosen=[],trace=[];
   if(!rank){for(let j=0;j<count;j++){chosen.push(j);trace.push({iteration:j+1,index:j,reason:'Dự phòng theo vị trí',score:0,rows:[]});}}
   else if(cfg.method==='gl'){
     for(let i=0;i<k;i++){const values=V.map(row=>Math.abs(row[i]));const candidates=Array.from({length:n},(_,j)=>j).filter(j=>!chosen.includes(j)).sort((a,b)=>compare(values,a,b));const best=candidates[0];chosen.push(best);trace.push({iteration:i+1,index:best,reason:`Chiều ${i+1}: |v${i+1},j| lớn nhất`,score:values[best],rows:candidates.map(j=>({index:j,importance:values[j],redundancy:0,value:values[j]}))});}
     if(count>rank){notices.push(`c = ${count} lớn hơn rank = ${rank}. Gong–Liu chọn ${rank} câu; bổ sung ${count-rank} câu theo điểm SVD tổng hợp (mở rộng dự phòng).`);for(const j of Array.from({length:n},(_,i)=>i).sort((a,b)=>compare(baseScores,a,b))){if(chosen.length>=count)break;if(!chosen.includes(j)){chosen.push(j);trace.push({iteration:chosen.length,index:j,reason:'Bổ sung theo điểm SVD tổng hợp',score:baseScores[j],rows:[]});}}}
   } else {
-    const lambda=cfg.mmr?clamp(Number(cfg.lambda),0,1):1;
     for(let step=0;step<count;step++){
-      const candidates=Array.from({length:n},(_,j)=>j).filter(j=>!chosen.includes(j)).map(j=>{const redundancy=chosen.length?Math.max(0,...chosen.map(l=>cosine(columns[j],columns[l]))):0;return {index:j,importance:finalScores[j],redundancy,value:lambda*finalScores[j]-(1-lambda)*redundancy};});
-      candidates.sort((a,b)=>Math.abs(b.value-a.value)<=1e-10?a.index-b.index:b.value-a.value);const best=candidates[0];chosen.push(best.index);trace.push({iteration:step+1,index:best.index,score:best.value,reason:cfg.mmr?'Tối đa MMR':'Điểm cuối cao nhất còn lại',rows:candidates});
+      const candidates=Array.from({length:n},(_,j)=>j).filter(j=>!chosen.includes(j)).map(j=>({index:j,importance:finalScores[j],redundancy:0,value:finalScores[j]}));
+      candidates.sort((a,b)=>Math.abs(b.value-a.value)<=1e-10?a.index-b.index:b.value-a.value);const best=candidates[0];chosen.push(best.index);trace.push({iteration:step+1,index:best.index,score:best.value,reason:'Điểm SVD cao nhất còn lại',rows:candidates});
     }
   }
   const selected=[...chosen].sort((a,b)=>a-b),VT=transpose(V),Sigma=sigma.map((s,i)=>sigma.map((_,j)=>i===j?s:0));
-  return {...input,U,V,VT,Sigma,sigma,rank,k,count,energy,totalEnergy,contributions,baseScores,adjusted,normalized,projected,topicResults,relevance,beta,finalScores,selected,selectionOrder:chosen,trace,notices,reconstructionError,orthogonalError};
+  return {...input,U,V,VT,Sigma,sigma,rank,k,count,energy,totalEnergy,contributions,baseScores,adjusted,normalized,finalScores,selected,selectionOrder:chosen,trace,notices,reconstructionError,orthogonalError};
 }
 export function inspectCell(r,t,j) {
   const f=r.tf[t][j],weighted=r.rawA[t][j],colNorm=r.rawNorms[j];
